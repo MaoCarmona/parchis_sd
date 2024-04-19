@@ -1,8 +1,9 @@
 import socket
 import select
 import os
-import sys
 import random
+import sys
+import threading
 
 def build_play(play):
     message = f"{NUMBER}:{' '.join(map(str, play))}"
@@ -27,11 +28,11 @@ os.system('cls' if os.name == 'nt' else 'clear')
 NAME = input("Ingresa tu nombre: ")
 SERVER.send(f":{NAME}".encode())
 NUMBER = "0"
-GAME_OVER = False
+GAME = False
 IN_USE = False
 
-while not GAME_OVER:
-    sockets = [SERVER]
+while not GAME:
+    sockets = [sys.stdin,SERVER]
     read_sockets, _, _ = select.select(sockets, [], [])
     for sock in read_sockets:
         if sock == SERVER:
@@ -40,13 +41,13 @@ while not GAME_OVER:
             if message.count("#") > 0:
                 print("Mi número es #" + message[-1])
                 NUMBER = message[-1]
-                GAME_OVER = True
+                GAME = True
                 break
             print(message)
 
-while GAME_OVER:
-    roll_dice()
-    sockets = [SERVER]
+while GAME:
+    threading.Thread(target=roll_dice).start()
+    sockets = [sys.stdin,SERVER]
     read_sockets, _, _ = select.select(sockets, [], [])
     for sock in read_sockets:
         if sock == SERVER:
@@ -54,7 +55,7 @@ while GAME_OVER:
             print(message)
             if message.startswith("Ganan"):
                 print(message)
-                GAME_OVER = False
+                GAME = False
                 break
 
 SERVER.close()

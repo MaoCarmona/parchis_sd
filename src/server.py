@@ -18,11 +18,14 @@ class Board():
         self.player2 = [0, 0, 0, 0]  # Blue
         self.player3 = [0, 0, 0, 0]  # Red
         self.player4 = [0, 0, 0, 0]  # Yellow
+        # 0 = In Jail
+        # -1 = In sky
+        # another case position
 
     # Method to move pieces
     def move(self, player, moves):
         who = self.who(player)
-        if who.count(0) != 0 and self.trapped(moves):
+        if who.count(0) != 0 and self.pairs(moves):
             self.release(player)
             moves = ['0', '0', '0', '0']
         for n in range(4):
@@ -145,20 +148,12 @@ class Board():
         if player == "4":
             return self.player4
 
-    def trapped(self, play):
-        if play.count('1') == 2:
-            return True
-        if play.count('2') == 2:
-            return True
-        if play.count('3') == 2:
-            return True
-        if play.count('4') == 2:
-            return True
-        if play.count('5') == 2:
-            return True
-        if play.count('6') == 2:
-            return True
+    def pairs(self, play):
+        for num in '123456':
+            if play.count(num) == 2:
+                return True
         return False
+
 
 def start_player(name, address):
     for n in range(len(NAME_LIST)):
@@ -247,7 +242,7 @@ def client_thread(conn, addr):
                 if not GAME.jail(GAME.player1):
                     ATTEMPTS = 0
                 ATTEMPTS -= 1
-                if not GAME.trapped(move) and ATTEMPTS <= 0:
+                if not GAME.pairs(move) and ATTEMPTS <= 0:
                     TURN = 2
                     ATTEMPTS = 3
                 GAME.move(message[0], move)
@@ -261,7 +256,7 @@ def client_thread(conn, addr):
                 if not GAME.jail(GAME.player2):
                     ATTEMPTS = 0
                 ATTEMPTS -= 1
-                if not GAME.trapped(move) and ATTEMPTS <= 0:
+                if not GAME.pairs(move) and ATTEMPTS <= 0:
                     TURN = 3
                     ATTEMPTS = 3
                 GAME.move(message[0], move)
@@ -273,7 +268,7 @@ def client_thread(conn, addr):
                 if not GAME.jail(GAME.player3):
                     ATTEMPTS = 0
                 ATTEMPTS -= 1
-                if not GAME.trapped(move) and ATTEMPTS <= 0:
+                if not GAME.pairs(move) and ATTEMPTS <= 0:
                     TURN = 4
                     ATTEMPTS = 3
                 GAME.move(message[0], move)
@@ -285,7 +280,7 @@ def client_thread(conn, addr):
                 if not GAME.jail(GAME.player4):
                     ATTEMPTS = 0
                 ATTEMPTS -= 1
-                if not GAME.trapped(move) and ATTEMPTS <= 0:
+                if not GAME.pairs(move) and ATTEMPTS <= 0:
                     TURN = 1
                     ATTEMPTS = 3
                 GAME.move(message[0], move)
@@ -319,27 +314,27 @@ def remove(connection):
 GAME = Board()
 def start_server():
     try:
-        # Creamos el socket del servidor
+        # Create socket for server
         SERVER = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         SERVER.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        # Asociamos y escuchamos en una dirección y un puerto específico
+        #Associate and listen on a specific address and port.
         SERVER.bind(('localhost', 3005))
         SERVER.listen(5)
         print("Servidor iniciado. Esperando conexiones...")
 
-        # Bucle principal del servidor
         while not FINAL_SERVER:
-            # Aceptamos conexiones de clientes
+            # Client connections
             conn, addr = SERVER.accept()
             CLIENTS.append(conn)
             print(addr[0] + " se ha conectado")
 
-            # Iniciamos un nuevo hilo para manejar la solicitud del cliente
+            # Init new thread for client requests
             client_th = threading.Thread(target=client_thread, args=(conn, addr))
             client_th.start()
 
-        # Cerramos la conexión del servidor
+        # Close server connections
+        conn.close()
         SERVER.close()
 
     except Exception as e:

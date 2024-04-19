@@ -1,7 +1,9 @@
+import select
+import socket
+import threading
 import pygame
 import random
-
-# Distributed board game
+import os
 
 Width = 650
 Height = 650
@@ -10,9 +12,11 @@ BLUE = [0, 0, 255]
 RED = [255, 0, 0]
 WHITE = [255, 255, 255]
 YELLOW = [253, 232, 15]
-colors = [GREEN, BLUE, YELLOW, RED, [150, 150, 250]]
-counter = [1]
-centers = [[105, 105], [105, Height - 105], [Width - 105, 105], [Width - 105, Height - 105], [Width / 2, Height / 2]]
+COLORS = [GREEN, BLUE, YELLOW, RED, [150, 150, 250]]
+COUNTERS = [1]
+CENTERS = [[105, 105], [105, Height - 105], [Width - 105, 105],
+           [Width - 105, Height - 105], [Width / 2, Height / 2]]
+
 
 class Block(pygame.sprite.Sprite):
     def __init__(self, dimension, cont=0):
@@ -22,17 +26,20 @@ class Block(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.obj_id = cont
 
+
 class Piece(pygame.sprite.Sprite):
     def __init__(self, number=[0, 1], sky=[0, 0, 0]):
         super().__init__()
         self.image = pygame.Surface([10, 10])
-        self.color = [number[0][0] / 6 * 4, number[0][1] / 6 * 4, number[0][2] / 6 * 4]
+        self.color = [number[0][0] / 6 * 4, number[0]
+                      [1] / 6 * 4, number[0][2] / 6 * 4]
         self.id = number
         self.rect = self.image.get_rect()
         self.number = number
         self.safe = True
         self.position = 0
         self.sky = sky
+
 
 class PieceButton(pygame.sprite.Sprite):
     def __init__(self, piece_number):
@@ -63,6 +70,7 @@ class PieceButton(pygame.sprite.Sprite):
             self.selected = False
             self.image.fill([220, 220, 220])
 
+
 class Dice(pygame.sprite.Sprite):
     def __init__(self, dice_number):
         super().__init__()
@@ -87,6 +95,7 @@ class Dice(pygame.sprite.Sprite):
         else:
             self.selected = False
             self.image.fill([220, 220, 220])
+
 
 class LaunchButton(pygame.sprite.Sprite):
     def __init__(self):
@@ -125,15 +134,15 @@ def throw_dice(start_game, remaining_pieces):
     if start_game:
         throws = 3
     for _ in range(throws):
-        die1 = random.randint(1, 6)
-        die2 = random.randint(1, 6)
+        dice1 = random.randint(1, 6)
+        dice2 = random.randint(1, 6)
     else:
         for _ in range(throws):
-            die1 = random.randint(1, 6)
-            die2 = random.randint(1, 6)
+            dice1 = random.randint(1, 6)
+            dice2 = random.randint(1, 6)
         if remaining_pieces == 1:
-            die2 = 0
-    return die1, die2
+            dice2 = 0
+    return dice1, dice2
 
 
 def create_pieces():
@@ -142,7 +151,7 @@ def create_pieces():
     for j in range(4):
         pieces_list = []
         for i in range(4):
-            piece = Piece([colors[j], i + 1], aux[j])
+            piece = Piece([COLORS[j], i + 1], aux[j])
             piece.rect.center = [j * 50 + 50, i * 50 + 50]
             pieces_list.append(piece)
         complete.append(pieces_list)
@@ -181,8 +190,8 @@ def create_squares():
 
     for i in range(5):  # Create bases
         block = Block([210, 210], 200 * (i + 1))
-        block.image.fill(colors[i])
-        block.rect.center = centers[i]
+        block.image.fill(COLORS[i])
+        block.rect.center = CENTERS[i]
         if i == 4:
             block.image = pygame.image.load("statics\cielo.png")
         squares_list.append(block)
@@ -243,12 +252,12 @@ def create_squares():
 
             if j in [0, 2, 4, 6]:
                 if i == 4:
-                    block.image.fill(colors[k])
+                    block.image.fill(COLORS[k])
                 else:
                     block.image.fill(WHITE)
             else:
                 if i == 3:
-                    block.image.fill(colors[k])
+                    block.image.fill(COLORS[k])
                 else:
                     block.image.fill(WHITE)
 
@@ -256,8 +265,8 @@ def create_squares():
             blanks_list.append(block)
 
     for block in blanks_list:
-        block.obj_id = counter[0]
-        counter[0] += 1
+        block.obj_id = COUNTERS[0]
+        COUNTERS[0] += 1
 
     return squares_list, bases_list, blanks_list
 
@@ -299,12 +308,13 @@ def create_buttons():
         buttons_list.append(button)
     return buttons_list
 
+
 def create_move_button():
     return []
 
 
 def construct_move_play(play):
-    message =  + ":"
+    message = + ":"
     for n in play:
         message += str(n) + " "
     return message[:-1]
@@ -339,7 +349,8 @@ def throw():
                                     f.selected = False
 
                                 print(dice_toss)
-                                possible_throws = [sum(dice_toss), dice_toss[0], dice_toss[1]]
+                                possible_throws = [
+                                    sum(dice_toss), dice_toss[0], dice_toss[1]]
                                 if dice_toss[0] == dice_toss[1]:
                                     pressed = True
                                 else:
@@ -426,58 +437,125 @@ def throw():
                                         b.selected = False
                                         b.image.fill
 
+
+# Server connection socketpp
+SERVER_CONNECTION = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+SERVER_CONNECTION.connect(('localhost', 3005))
+
+# Clear screen
+os.system('cls' if os.name == 'nt' else 'clear')
 NUMBER = "0"
 GAME = False
 USE = False
 DICE_LIST = [0, 0, False, False]
-
-# Initialize pygame
-pygame.init()
-
 # Screen dimensions
 WIDTH = 650
 HEIGTH = 650
 
-# Set up pygame display and fonts
-SCREEN = pygame.display.set_mode([WIDTH + 400, HEIGTH])
-FONT = pygame.font.Font(None, 20)
-DICE_FONT = pygame.font.Font(None, 50)
+if __name__ == '__main__':
+    # Initialize pygame
+    pygame.init()
 
-# Sprite groups
-ALL_SPRITES = pygame.sprite.Group()
-BUTTOMS_SPRITES = pygame.sprite.Group()
-BUTTOMS_PIECES = pygame.sprite.Group()
-BUTTOMS_MOVES = pygame.sprite.Group()
-DICES = pygame.sprite.Group()
-GROUP = pygame.sprite.Group()
 
-# Create game elements
-lst, bases, blancos = create_squares()
-GROUP.add(lst)
-fichos = create_pieces()
+    # Set up pygame display and fonts
+    SCREEN = pygame.display.set_mode([WIDTH + 400, HEIGTH])
+    FONT = pygame.font.Font(None, 20)
+    DICE_FONT = pygame.font.Font(None, 50)
 
-# Draw screen components
-pygame.draw.rect(SCREEN, [255, 255, 255], [[650, 0], [850, 650]])
-pygame.draw.line(SCREEN, [0, 0, 0], [650, 0], [650, 650], 2)
+    # Sprite groups
+    ALL_SPRITES = pygame.sprite.Group()
+    BUTTOMS_SPRITES = pygame.sprite.Group()
+    BUTTOMS_PIECES = pygame.sprite.Group()
+    BUTTOMS_MOVES = pygame.sprite.Group()
+    DICES = pygame.sprite.Group()
+    GROUP = pygame.sprite.Group()
 
-DICE = create_dice()
-DICES.add(DICE)
-ALL_SPRITES.add(DICE)
+    # Create game elements
+    squares_list, bases_list, blanks_list = create_squares()
+    GROUP.add(squares_list)
+    fichos = create_pieces()
 
-ALL_BUTTOMS = create_buttons()
-BUTTOMS_PIECES.add(ALL_BUTTOMS)
-ALL_SPRITES.add(ALL_BUTTOMS)
+    # Draw screen components
+    pygame.draw.rect(SCREEN, [255, 255, 255], [[650, 0], [850, 650]])
+    pygame.draw.line(SCREEN, [0, 0, 0], [650, 0], [650, 650], 2)
 
-BUTTOMS_PIECES.add(ALL_BUTTOMS)
-ALL_SPRITES.add(ALL_BUTTOMS)
+    DICE = create_dice()
+    DICES.add(DICE)
+    ALL_SPRITES.add(DICE)
 
-LAUNCH_BUTTOM = LaunchButton()
-BUTTOMS_SPRITES.add(LAUNCH_BUTTOM)
-ALL_SPRITES.add(LAUNCH_BUTTOM)
+    ALL_BUTTOMS = create_buttons()
+    BUTTOMS_PIECES.add(ALL_BUTTOMS)
+    ALL_SPRITES.add(ALL_BUTTOMS)
 
-MOVE_BUTTOM = MoveButton()
-BUTTOMS_MOVES.add(MOVE_BUTTOM)
-ALL_SPRITES.add(MOVE_BUTTOM)
+    BUTTOMS_PIECES.add(ALL_BUTTOMS)
+    ALL_SPRITES.add(ALL_BUTTOMS)
 
-PAIRS = False
-END = False
+    LAUNCH_BUTTOM = LaunchButton()
+    BUTTOMS_SPRITES.add(LAUNCH_BUTTOM)
+    ALL_SPRITES.add(LAUNCH_BUTTOM)
+
+    MOVE_BUTTOM = MoveButton()
+    BUTTOMS_MOVES.add(MOVE_BUTTOM)
+    ALL_SPRITES.add(MOVE_BUTTOM)
+
+    PAIRS = False
+    END = False
+    while not GAME:
+        sockets = [SERVER_CONNECTION]
+        try:
+            leidos, escrito, error = select.select(sockets, [], [])
+        except select.error as e:
+            print("Error de select:", e)
+            break
+        
+        for socks in leidos:
+            if socks == SERVER_CONNECTION:
+                mensaje = socks.recv(1024)
+                os.system('cls' if os.name == 'nt' else 'clear')
+                if mensaje.count(b"#") > 0:
+                    print("My number is #: " + mensaje[-1])
+                    NUMBER = mensaje[-1]
+                    GAME = True
+                    break
+                print(mensaje)
+
+    if GAME:
+        threading.Thread(target=throw).start()
+        while not END:
+            SCREEN.fill([255, 255, 255])
+            sockets = [SERVER_CONNECTION]
+            try:
+                leidos, escrito, error = select.select(sockets, [], [])
+            except select.error as e:
+                print("Error de select:", e)
+                break
+            
+            for socks in leidos:
+                if socks == SERVER_CONNECTION:
+                    mensaje = socks.recv(1024)
+                    print(mensaje)
+                    mensaje = mensaje.split("#")
+                    aux = mensaje[3]
+                    mensaje[3] = mensaje[2]
+                    mensaje[2] = aux
+                    SCREEN.blit(DICE_FONT.render(str(mensaje[-1]), False, [0, 0, 0]), [700, 600])
+                    for n in range(4):
+                        mensaje[n] = mensaje[n].split(" ")
+                    print(mensaje)
+                    print(len(fichos))
+                    for n in fichos:
+                        print(len(n), "elemento")
+
+                    for i in range(4):
+                        for j in range(4):
+                            fichos[i][j].pos = int(mensaje[i][j])
+
+                    for i in range(4):
+                        for j in range(4):
+                            print(fichos[i][j].pos)
+                    print("Updated")
+                    if mensaje[0] == 'G':
+                        GAME = False
+                        END = True
+                    break
+    SERVER_CONNECTION.close()
