@@ -503,12 +503,12 @@ if __name__ == '__main__':
     while not GAME:
         sockets = [SERVER_CONNECTION]
         try:
-            leidos, escrito, error = select.select(sockets, [], [])
+            read_sockets, write_sockets, error_sockets = select.select(sockets, [], [])
         except select.error as e:
             print("Error de select:", e)
             break
         
-        for socks in leidos:
+        for socks in read_sockets:
             if socks == SERVER_CONNECTION:
                 mensaje = socks.recv(1024)
                 os.system('cls' if os.name == 'nt' else 'clear')
@@ -525,12 +525,12 @@ if __name__ == '__main__':
             SCREEN.fill([255, 255, 255])
             sockets = [SERVER_CONNECTION]
             try:
-                leidos, escrito, error = select.select(sockets, [], [])
+                read_sockets, write_sockets, error_sockets = select.select(sockets, [], [])
             except select.error as e:
                 print("Error de select:", e)
                 break
             
-            for socks in leidos:
+            for socks in read_sockets:
                 if socks == SERVER_CONNECTION:
                     mensaje = socks.recv(1024)
                     print(mensaje)

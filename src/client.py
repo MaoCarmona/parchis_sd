@@ -32,8 +32,9 @@ GAME = False
 IN_USE = False
 
 while not GAME:
-    sockets = [sys.stdin,SERVER]
-    read_sockets, _, _ = select.select(sockets, [], [])
+    sockets = [SERVER]
+    print(select.select(sockets, [], []))
+    read_sockets, write_sockets, eror_sockets = select.select(sockets, [], [])
     for sock in read_sockets:
         if sock == SERVER:
             message = sock.recv(1024).decode()
@@ -47,7 +48,7 @@ while not GAME:
 
 while GAME:
     threading.Thread(target=roll_dice).start()
-    sockets = [sys.stdin,SERVER]
+    sockets = [SERVER]
     read_sockets, _, _ = select.select(sockets, [], [])
     for sock in read_sockets:
         if sock == SERVER:

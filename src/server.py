@@ -2,7 +2,7 @@ import socket
 import threading
 import datetime
 
-seguros = [1, 6, 13, 18, 23, 30, 35, 40, 47, 52, 57, 64]
+INSURANCES = [1, 6, 13, 18, 23, 30, 35, 40, 47, 52, 57, 64]
 CLIENTS = []
 NAME_LIST = [None, None, None, None]
 FINAL_SERVER = False
@@ -55,16 +55,16 @@ class Board():
         for n in range(4):
             for m in range(4):
                 if number != "1":
-                    if player[n] == self.player1[m] and (player[n] not in seguros):
+                    if player[n] == self.player1[m] and (player[n] not in INSURANCES):
                         self.player1[m] = 0
                 if number != "2":
-                    if player[n] == self.player2[m] and (player[n] not in seguros):
+                    if player[n] == self.player2[m] and (player[n] not in INSURANCES):
                         self.player2[m] = 0
                 if number != "3":
-                    if player[n] == self.player3[m] and (player[n] not in seguros):
+                    if player[n] == self.player3[m] and (player[n] not in INSURANCES):
                         self.player3[m] = 0
                 if number != "4":
-                    if player[n] == self.player4[m] and (player[n] not in seguros):
+                    if player[n] == self.player4[m] and (player[n] not in INSURANCES):
                         self.player4[m] = 0
 
     def sky(self, player, moves):
