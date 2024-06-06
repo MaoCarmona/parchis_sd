@@ -33,7 +33,7 @@ if __name__ == "__main__":
         if (data == "Bienvenido al chat"):
             Correcto = True
             break
-        username = raw_input("")
+        username = input()
         s.send(username)
 
     if Correcto:

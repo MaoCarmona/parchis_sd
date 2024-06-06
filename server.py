@@ -2,19 +2,18 @@ import socket
 import select
 import threading
 
-def broadcast_data(sock, message, CONNECTION_LIST):
-    print("Tamaño conn ", len(CONNECTION_LIST))
+juego_iniciado = False
+
+def broadcast_data(sock, message, CONNECTION_LIST, server_socket):
     for s in CONNECTION_LIST:
         if s != server_socket and s != sock:
             try:
                 s.send(message.encode('utf-8'))
-                print("Mensaje enviado")
             except Exception as e:
-                print("Error al enviar el mensaje:", e)
                 s.close()
                 CONNECTION_LIST.remove(s)
 
-def sendData(CONNECTION_LIST):
+def sendData(CONNECTION_LIST, server_socket):
     try:
         with open("users.txt", 'r') as f:
             data = f.read()
@@ -25,10 +24,8 @@ def sendData(CONNECTION_LIST):
                     try:
                         s.send(data.encode('utf-8'))
                     except Exception as e:
-                        print("Error al enviar datos:", e)
                         s.close()
                         CONNECTION_LIST.remove(s)
-            print("Datos enviados")
     except Exception as e:
         print("Error al abrir archivo:", e)
 
@@ -36,15 +33,12 @@ def getUsername(sock, dic):
     for u, s in dic.items():
         if s == sock:
             return u
-    print("Usuario no encontrado")
     return None
 
-def verifyUser(new_client, dic, CONNECTION_LIST, sock, COLOR_LIST, users_colors):
+def verifyUser(new_client, dic, CONNECTION_LIST, COLOR_LIST, users_colors):
     while True:
         data = new_client.recv(1024).decode('utf-8').strip()
-        print(f"Datos recibidos para verificación: {data}")
         user = data.split(":")
-        print("Usuario: %s" % user)
         if len(user) < 2:
             new_client.send("Error en el formato de los datos\n".encode('utf-8'))
             continue
@@ -57,7 +51,7 @@ def verifyUser(new_client, dic, CONNECTION_LIST, sock, COLOR_LIST, users_colors)
             CONNECTION_LIST.append(new_client)
             dic[user[0]] = new_client
             users_colors[user[0]] = user[1]
-            new_client.send("Bienvenido\n".encode('utf-8'))
+            new_client.send("Bienvenido".encode('utf-8'))
             break
     return ":".join(user)
 
@@ -65,12 +59,7 @@ def getSocket(username, dic):
     for u, s in dic.items():
         if u == username:
             return s
-    print("Socket no encontrado")
     return None
-
-def getIndex(username, dic, CONNECTION_LIST):
-    s = getSocket(username, dic)
-    return CONNECTION_LIST.index(s)
 
 def save_user(data):
     try:
@@ -80,41 +69,32 @@ def save_user(data):
     except Exception as e:
         print("Error al escribir en archivo:", e)
 
-def handle_client(conn, addr):
-    global users_list
-    global CONNECTION_LIST
-    global server_socket
-
-    print("Nueva conexión desde:", addr)
+def handle_client(conn, addr, server_socket, users_list, users_colors, CONNECTION_LIST, COLOR_LIST):
+    global juego_iniciado
     try:
-        username = verifyUser(conn, users_list, CONNECTION_LIST, server_socket, COLOR_LIST, users_colors)
+        username = verifyUser(conn, users_list, CONNECTION_LIST, COLOR_LIST, users_colors)
         save_user(users_colors)
 
-        sendData(CONNECTION_LIST)
+        sendData(CONNECTION_LIST, server_socket)
 
         while True:
             data = conn.recv(RECV_BUFFER).decode('utf-8')
             if not data:
                 break
-            print("Datos recibidos por el servidor: " + data)
             user = getUsername(conn, users_list)
-            print("Usuario que lo envió: " + user)
 
             if data == "Necesito el orden de los turnos" and len(users_list) == 4:
-                sendData(CONNECTION_LIST)
-
+                sendData(CONNECTION_LIST, server_socket)
+                # Señal para iniciar el juego
+                juego_iniciado = True
             elif data.split(":")[0] == "Dados":
-                broadcast_data(conn, data, CONNECTION_LIST)
-                print("Se enviaron los dados: %s" % data)
-
+                broadcast_data(conn, data, CONNECTION_LIST, server_socket)
             else:
-                print("Se envía a todos los demás!!")
-                broadcast_data(conn, data, CONNECTION_LIST)
+                broadcast_data(conn, data, CONNECTION_LIST, server_socket)
     except Exception as e:
         print("Error en el hilo del cliente:", e)
     finally:
         conn.close()
-        print("Cliente desconectado:", addr)
         CONNECTION_LIST.remove(conn)
 
 if __name__ == "__main__":
@@ -124,12 +104,11 @@ if __name__ == "__main__":
     PORT = 5000
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind(("localhost", PORT))
     server_socket.listen(10)
 
     CONNECTION_LIST.append(server_socket)
-
-    print("Servidor de chat iniciado en el puerto " + str(PORT))
 
     users_list = {}
     users_colors = {}
@@ -137,10 +116,10 @@ if __name__ == "__main__":
     with open("users.txt", 'w') as f:
         pass
 
-    turnosEnviados = False
+    print(f"Servidor de chat iniciado en el puerto {PORT}")
 
-    while True:
-        try:
+    try:
+        while True:
             read_sockets, _, _ = select.select(CONNECTION_LIST, [], [])
 
             for sock in read_sockets:
@@ -148,12 +127,17 @@ if __name__ == "__main__":
                     sockfd, addr = server_socket.accept()
                     if len(CONNECTION_LIST) > 4:
                         sockfd.send("Parques lleno, inténtalo más tarde".encode('utf-8'))
-                        break
-                    threading.Thread(target=handle_client, args=(sockfd, addr)).start()
-                else:
-                    print("Error: Socket no es el servidor")
-        except KeyboardInterrupt:
-            print("Servidor detenido")
-            break
+                        sockfd.close()
+                        continue
+                    threading.Thread(target=handle_client, args=(sockfd, addr, server_socket, users_list, users_colors, CONNECTION_LIST, COLOR_LIST)).start()
+
+            # Si el juego ha comenzado, envía una señal especial a todos los clientes
+            if juego_iniciado:
+                broadcast_data(None, "El juego ha comenzado", CONNECTION_LIST, server_socket)
+                juego_iniciado = False  # Reinicia la señal
+    except KeyboardInterrupt:
+        print("Servidor detenido")
+    except Exception as e:
+        print("Error en el bucle principal:", e)
 
     server_socket.close()

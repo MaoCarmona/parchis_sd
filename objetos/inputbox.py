@@ -1,6 +1,7 @@
 import pygame
 from pygame.locals import *
-from objects import *
+from objects import Boton, Cursor
+
 # Cargar imágenes y redimensionarlas
 rojo1 = pygame.image.load("rojo.png")
 rojo1 = pygame.transform.scale(rojo1, (50, 50))
@@ -24,6 +25,7 @@ boton_rojo = Boton(rojo1, rojo2, 100, 100)
 boton_verde = Boton(verde1, verde2, 160, 100)
 boton_azul = Boton(azul1, azul2, 220, 100)
 boton_amarillo = Boton(amarillo1, amarillo2, 280, 100)
+
 def get_key(cursor, screen, current_color):
     color = current_color
     while True:
@@ -92,3 +94,5 @@ def ask(screen, question, cursor, usr_err, color_err):
 def main_inputBox(cursor, screen, usr_err, color_err):
     screen = pygame.display.set_mode((500, 280))
     return ask(screen, "Nombre de usuario", cursor, usr_err, color_err)
+
+
